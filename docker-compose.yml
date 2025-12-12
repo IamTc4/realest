@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  # Database
+  db:
+    image: postgres:15-alpine
+    container_name: realest_db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: realest_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  # Backend
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: realest_api
+    environment:
+      DATABASE_URL: postgres://postgres:password@db:5432/realest_db
+      JWT_SECRET: production_secret_key
+      PORT: 3001
+    ports:
+      - "3001:3001"
+    depends_on:
+      - db
+    command: sh -c "npx prisma migrate deploy && node index.js"
+
+  # Frontend
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: realest_web
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:3001/api
+    depends_on:
+      - api
+
+volumes:
+  postgres_data:

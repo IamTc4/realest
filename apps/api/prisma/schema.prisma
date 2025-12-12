@@ -1,0 +1,132 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// 1. Users (Admin, Agent, Manager)
+model User {
+  id              String   @id @default(uuid())
+  name            String
+  email           String   @unique
+  password        String
+  phone           String?
+  role            String   // ADMIN, MANAGER, AGENT
+  status          String   @default("ACTIVE") // ACTIVE, INACTIVE
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  leads           Lead[]
+  assignedTasks   Task[]   @relation("AssignedTo")
+  createdTasks    Task[]   @relation("CreatedBy")
+  stats           AgentStat?
+}
+
+model AgentStat {
+  id              String   @id @default(uuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id])
+  totalLeads      Int      @default(0)
+  closedDeals     Int      @default(0)
+  totalRevenue    Float    @default(0)
+  rating          Float    @default(0)
+  updatedAt       DateTime @updatedAt
+}
+
+// 2. Leads
+model Lead {
+  id              String   @id @default(uuid())
+  name            String
+  email           String?
+  phone           String
+  budgetMin       Float?
+  budgetMax       Float?
+  location        String?  // Preferred locations
+  propertyType    String?  // Apartment, Villa, Plot
+  timeline        String?  // Immediate, 3 Months, 6 Months
+  intent          String?  // BUYER, SELLER, INVESTOR
+  status          String   @default("NEW") // NEW, CONTACTED, FOLLOW_UP, SITE_VISIT, NEGOTIATION, CLOSED_WON, CLOSED_LOST
+  source          String?  // ADS, LANDING_PAGE, REFERRAL, MANUAL
+  score           Int      @default(0)
+  tier            String   @default("C") // A, B, C
+
+  agentId         String?
+  agent           User?    @relation(fields: [agentId], references: [id])
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  interactions    Interaction[]
+  tasks           Task[]
+}
+
+// 3. Properties (Inventory)
+model Property {
+  id              String   @id @default(uuid())
+  title           String
+  description     String?
+  type            String   // APARTMENT, VILLA, PLOT
+  status          String   @default("AVAILABLE") // AVAILABLE, SOLD, RESERVED
+  price           Float
+  location        String
+  builder         String?
+  bedrooms        Int?
+  bathrooms       Int?
+  areaSqFt        Float?
+  images          String   // JSON string of image URLs
+  amenities       String?  // JSON string or comma separated
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// 4. Tasks
+model Task {
+  id              String   @id @default(uuid())
+  title           String
+  description     String?
+  type            String   // CALL, VISIT, FOLLOW_UP
+  dueDate         DateTime?
+  status          String   @default("PENDING") // PENDING, COMPLETED, OVERDUE
+
+  leadId          String?
+  lead            Lead?    @relation(fields: [leadId], references: [id])
+
+  assignedToId    String?
+  assignedTo      User?    @relation("AssignedTo", fields: [assignedToId], references: [id])
+
+  createdById     String
+  createdBy       User     @relation("CreatedBy", fields: [createdById], references: [id])
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// 5. Automations
+model Automation {
+  id              String   @id @default(uuid())
+  name            String
+  triggerType     String   // STATUS_CHANGE, NEW_LEAD
+  triggerValue    String?  // e.g. "NEW"
+  actions         String   // JSON defining the flow
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// 6. Interactions (Timeline)
+model Interaction {
+  id              String   @id @default(uuid())
+  leadId          String
+  lead            Lead     @relation(fields: [leadId], references: [id])
+  type            String   // NOTE, CALL, EMAIL, SMS, WHATSAPP, SITE_VISIT
+  content         String?
+  metadata        String?  // JSON for extra data
+  createdAt       DateTime @default(now())
+}
