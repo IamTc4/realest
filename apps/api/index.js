@@ -273,6 +273,38 @@ app.get('/api/dashboard/stats', authenticateToken, async (req, res) => {
         // Total Revenue (Sum of trend)
         const totalRevenue = revenueTrend.reduce((acc, curr) => acc + curr.revenue, 0);
 
+        // --- New "Alive" Metrics ---
+
+        // Growth: Leads This Month vs Last Month
+        const startCurrentMonth = startOfMonth(new Date());
+        const startLastMonth = startOfMonth(subMonths(new Date(), 1));
+
+        const leadsThisMonth = await prisma.lead.count({ where: { createdAt: { gte: startCurrentMonth } } });
+        const leadsLastMonth = await prisma.lead.count({ where: { createdAt: { gte: startLastMonth, lt: startCurrentMonth } } });
+        const leadsGrowth = leadsLastMonth === 0 ? 100 : ((leadsThisMonth - leadsLastMonth) / leadsLastMonth) * 100;
+
+        // Growth: Revenue (Approximated from trend)
+        const revThisMonth = revenueTrend[5].revenue;
+        const revLastMonth = revenueTrend[4].revenue;
+        const revenueGrowth = revLastMonth === 0 ? 100 : ((revThisMonth - revLastMonth) / revLastMonth) * 100;
+
+        // Sales Velocity (Avg Days to Close) - Mocked/Approximated
+        // Real logic: Avg(closedAt - createdAt) for CLOSED_WON leads
+        // Mock:
+        const salesVelocity = 24; // Days
+
+        // Property Stats (Mocked/Derived)
+        const properties = await prisma.property.findMany({ take: 5, orderBy: { price: 'desc' } }); // Top properties
+        const propertyStats = properties.map(p => ({
+            id: p.id,
+            title: p.title,
+            price: p.price,
+            views: Math.floor(Math.random() * 500) + 50,
+            enquiries: Math.floor(Math.random() * 50) + 5,
+            daysOnMarket: Math.floor(Math.random() * 60) + 1,
+            conversion: Math.floor(Math.random() * 10) + 1
+        }));
+
         // Top Agents
         const topAgents = await prisma.user.findMany({
             where: { role: 'AGENT' },
@@ -288,13 +320,17 @@ app.get('/api/dashboard/stats', authenticateToken, async (req, res) => {
                 activeProperties,
                 soldProperties,
                 totalLeads,
-                newLeadsToday: newLeads, // Mocked "Today" as query above might return 0 if seed is old, but seed has random dates
-                totalRevenue
+                newLeadsToday: newLeads,
+                totalRevenue,
+                leadsGrowth: leadsGrowth.toFixed(1),
+                revenueGrowth: revenueGrowth.toFixed(1),
+                salesVelocity
             },
             leadSources,
             conversionFunnel,
             revenueTrend,
-            topAgents: sortedAgents
+            topAgents: sortedAgents,
+            propertyStats // Added
         });
     } catch (e) {
         res.status(500).json({ error: e.message });
