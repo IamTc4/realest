@@ -126,6 +126,27 @@ model Automation {
   updatedAt       DateTime @updatedAt
 }
 
+model AutomationRule {
+  id          String   @id @default(uuid())
+  name        String
+  trigger     String   // e.g. "LEAD_CREATED", "STATUS_CHANGED"
+  condition   String?  // JSON e.g. { "source": "Facebook" }
+  actionType  String   // "SEND_WHATSAPP", "ASSIGN_AGENT", "SEND_EMAIL"
+  template    String?  // Message template or ID
+  isActive    Boolean  @default(true)
+}
+
+model Organization {
+  id          String   @id @default(uuid())
+  name        String
+  logo        String?
+  brandColor  String   @default("#059669") // Emerald-600
+  plan        String   @default("STARTER") // STARTER, GROWTH, ENTERPRISE
+  leadsLimit  Int      @default(1000)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
 // 6. Interactions (Timeline)
 model Interaction {
   id              String   @id @default(uuid())

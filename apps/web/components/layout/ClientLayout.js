@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { cn } from '../../lib/utils';
 import { Home, Search, Heart, User, MessageSquare } from 'lucide-react';
+import ClientChatbot from '../ClientChatbot';
 
 const ClientLayout = ({ children }) => {
   const router = useRouter();
@@ -31,6 +32,8 @@ const ClientLayout = ({ children }) => {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {children}
       </main>
+
+      <ClientChatbot />
 
       {/* Mobile Bottom Nav */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 md:hidden z-50">

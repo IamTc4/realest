@@ -1,13 +1,64 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import AdminLayout from '../../components/layout/AdminLayout';
-import { Bot, Zap, MessageSquare, CheckCircle, Clock } from 'lucide-react';
+import { Bot, Zap, MessageSquare, CheckCircle, Clock, Plus, Activity } from 'lucide-react';
 
 export default function AutomationsPage() {
+  const [rules, setRules] = useState([]);
+
+  useEffect(() => {
+    // In real app, fetch from /api/automations
+    // Mocking here for visual demonstration as backend endpoint is newly added
+    const mockRules = [
+        { id: 1, name: 'New Lead Auto-Reply', trigger: 'LEAD_CREATED', actionType: 'SEND_WHATSAPP', isActive: true, stats: { executed: 124, success: 98 } },
+        { id: 2, name: 'Follow-up Reminder (24h)', trigger: 'NO_RESPONSE_24H', actionType: 'CREATE_TASK', isActive: true, stats: { executed: 45, success: 100 } },
+        { id: 3, name: 'Hot Lead Alert', trigger: 'SCORE_ABOVE_80', actionType: 'NOTIFY_ADMIN', isActive: true, stats: { executed: 12, success: 100 } },
+    ];
+    setRules(mockRules);
+  }, []);
+
   return (
     <AdminLayout>
-      <div className="mb-8">
-          <h1 className="text-2xl font-bold text-slate-900 font-serif">AI & Automations</h1>
-          <p className="text-slate-500">Manage intelligent workflows and roadmap status.</p>
+      <div className="mb-8 flex justify-between items-end">
+          <div>
+              <h1 className="text-2xl font-bold text-slate-900 font-serif">AI & Automations</h1>
+              <p className="text-slate-500">Manage intelligent workflows and roadmap status.</p>
+          </div>
+          <button className="bg-slate-900 text-white px-4 py-2 rounded-lg flex items-center text-sm font-medium hover:bg-slate-800">
+              <Plus className="w-4 h-4 mr-2" /> New Rule
+          </button>
+      </div>
+
+      {/* Active Rules List */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 mb-8 overflow-hidden">
+          <div className="p-6 border-b border-gray-100">
+              <h3 className="text-lg font-bold text-slate-800 font-serif">Active Workflow Rules</h3>
+          </div>
+          <div className="divide-y divide-gray-100">
+              {rules.map(rule => (
+                  <div key={rule.id} className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors">
+                      <div className="flex items-center space-x-4">
+                          <div className={`p-2 rounded-lg ${rule.isActive ? 'bg-emerald-100 text-emerald-600' : 'bg-gray-100 text-gray-500'}`}>
+                              <Zap className="w-5 h-5" />
+                          </div>
+                          <div>
+                              <p className="font-bold text-slate-900">{rule.name}</p>
+                              <p className="text-xs text-slate-500">Trigger: {rule.trigger} → Action: {rule.actionType}</p>
+                          </div>
+                      </div>
+                      <div className="flex items-center space-x-6">
+                          <div className="text-right">
+                              <p className="text-xs text-slate-400 uppercase font-bold">Success Rate</p>
+                              <p className="text-sm font-bold text-slate-700">{rule.stats.success}%</p>
+                          </div>
+                          <div className="text-right">
+                              <p className="text-xs text-slate-400 uppercase font-bold">Executions</p>
+                              <p className="text-sm font-bold text-slate-700">{rule.stats.executed}</p>
+                          </div>
+                          <div className={`w-3 h-3 rounded-full ${rule.isActive ? 'bg-emerald-500' : 'bg-gray-300'}`}></div>
+                      </div>
+                  </div>
+              ))}
+          </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">

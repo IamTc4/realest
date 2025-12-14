@@ -219,6 +219,26 @@ app.get('/api/properties/:id', async (req, res) => {
     }
 });
 
+// Phase 2: Automations Endpoint
+app.get('/api/automations', authenticateToken, async (req, res) => {
+    try {
+        const rules = await prisma.automationRule.findMany();
+        res.json(rules);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// Phase 3: SaaS Organization Endpoint
+app.get('/api/organization', authenticateToken, async (req, res) => {
+    try {
+        const org = await prisma.organization.findFirst();
+        res.json(org);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
 // --- Enterprise Analytics Endpoints ---
 
 app.get('/api/dashboard/stats', authenticateToken, async (req, res) => {
