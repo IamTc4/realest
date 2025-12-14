@@ -10,14 +10,14 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// 1. Users (Admin, Agent, Manager)
+// 1. Users (Admin, Agent, Manager, Client)
 model User {
   id              String   @id @default(uuid())
   name            String
   email           String   @unique
   password        String
   phone           String?
-  role            String   // ADMIN, MANAGER, AGENT
+  role            String   // ADMIN, MANAGER, AGENT, CLIENT
   status          String   @default("ACTIVE") // ACTIVE, INACTIVE
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -27,6 +27,8 @@ model User {
   assignedTasks   Task[]   @relation("AssignedTo")
   createdTasks    Task[]   @relation("CreatedBy")
   stats           AgentStat?
+  savedProperties SavedProperty[]
+  notifications   Notification[]
 }
 
 model AgentStat {
@@ -82,8 +84,12 @@ model Property {
   areaSqFt        Float?
   images          String   // JSON string of image URLs
   amenities       String?  // JSON string or comma separated
+  videoUrl        String?
+  floorPlanUrl    String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+
+  savedBy         SavedProperty[]
 }
 
 // 4. Tasks
@@ -129,4 +135,28 @@ model Interaction {
   content         String?
   metadata        String?  // JSON for extra data
   createdAt       DateTime @default(now())
+}
+
+// 7. Saved Properties (Client Feature)
+model SavedProperty {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  propertyId String
+  property  Property @relation(fields: [propertyId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([userId, propertyId])
+}
+
+// 8. Notifications
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  title     String
+  message   String
+  isRead    Boolean  @default(false)
+  type      String   // SYSTEM, LEAD, PRICE_DROP
+  createdAt DateTime @default(now())
 }

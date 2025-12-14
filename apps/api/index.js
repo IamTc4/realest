@@ -46,6 +46,31 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
+// Mock OTP Login for Clients (Prototype)
+app.post('/api/auth/otp-login', async (req, res) => {
+    const { phone } = req.body;
+    // In a real app, verify OTP. Here we just find or create a user with this phone/mock email.
+    try {
+        let user = await prisma.user.findFirst({ where: { phone } });
+
+        // Mock finding a client user
+        if (!user) {
+            // Check if there is a client with this phone, if not create a mock one or return error
+            // For prototype, let's use the seeded client user if phone matches '1234567890' (mock)
+            // or just login the seeded client user for any phone for demo purposes
+            user = await prisma.user.findUnique({ where: { email: 'client@example.com' }});
+        }
+
+        if (!user) return res.status(400).json({ error: 'User not found' });
+
+        const token = jwt.sign({ id: user.id, role: user.role, name: user.name }, JWT_SECRET, { expiresIn: '1d' });
+        res.json({ token, user: { id: user.id, name: user.name, email: user.email, role: user.role } });
+
+    } catch(e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
 app.get('/api/auth/me', authenticateToken, async (req, res) => {
   try {
     const user = await prisma.user.findUnique({
@@ -175,7 +200,19 @@ app.post('/api/leads/:id/interaction', authenticateToken, async (req, res) => {
 // Properties
 app.get('/api/properties', async (req, res) => {
     try {
-        const properties = await prisma.property.findMany();
+        const { type, minPrice, maxPrice, location, bedrooms } = req.query;
+        const where = { status: 'AVAILABLE' };
+
+        if (type) where.type = type;
+        if (location) where.location = { contains: location };
+        if (bedrooms) where.bedrooms = { gte: parseInt(bedrooms) };
+        if (minPrice || maxPrice) {
+            where.price = {};
+            if (minPrice) where.price.gte = parseFloat(minPrice);
+            if (maxPrice) where.price.lte = parseFloat(maxPrice);
+        }
+
+        const properties = await prisma.property.findMany({ where });
         res.json(properties);
     } catch (e) {
         res.status(500).json({ error: e.message });
@@ -190,6 +227,51 @@ app.get('/api/properties/:id', async (req, res) => {
         res.status(500).json({ error: e.message });
     }
 });
+
+// Saved Properties (Client)
+app.get('/api/me/saved-properties', authenticateToken, async (req, res) => {
+    try {
+        const saved = await prisma.savedProperty.findMany({
+            where: { userId: req.user.id },
+            include: { property: true }
+        });
+        res.json(saved);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.post('/api/properties/:id/save', authenticateToken, async (req, res) => {
+    try {
+        const saved = await prisma.savedProperty.create({
+            data: {
+                userId: req.user.id,
+                propertyId: req.params.id
+            }
+        });
+        res.json(saved);
+    } catch (e) {
+        // Unique constraint violation
+        res.status(400).json({ error: 'Property already saved or invalid' });
+    }
+});
+
+app.delete('/api/properties/:id/save', authenticateToken, async (req, res) => {
+    try {
+        await prisma.savedProperty.delete({
+            where: {
+                userId_propertyId: {
+                    userId: req.user.id,
+                    propertyId: req.params.id
+                }
+            }
+        });
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
 
 // Dashboard Analytics
 app.get('/api/dashboard/stats', authenticateToken, async (req, res) => {
