@@ -4,188 +4,126 @@ const bcrypt = require('bcryptjs');
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('Start seeding ...');
+  const hashedPassword = await bcrypt.hash('password123', 10);
 
-  // Cleanup
-  await prisma.interaction.deleteMany();
-  await prisma.task.deleteMany();
-  await prisma.lead.deleteMany();
-  await prisma.property.deleteMany();
-  await prisma.agentStat.deleteMany();
-  await prisma.automation.deleteMany();
-  await prisma.user.deleteMany();
-
-  // 1. Users
-  const password = await bcrypt.hash('password123', 10);
-
-  const admin = await prisma.user.create({
-    data: {
+  // Users
+  const admin = await prisma.user.upsert({
+    where: { email: 'admin@developerbee.com' },
+    update: {},
+    create: {
       name: 'Admin User',
-      email: 'admin@realestate.com',
-      password,
+      email: 'admin@developerbee.com',
+      password: hashedPassword,
       role: 'ADMIN',
+      status: 'ACTIVE',
     },
   });
 
-  const agent1 = await prisma.user.create({
-    data: {
-      name: 'Sarah Realtor',
-      email: 'sarah@realestate.com',
-      password,
+  const agent = await prisma.user.upsert({
+    where: { email: 'agent@developerbee.com' },
+    update: {},
+    create: {
+      name: 'Agent Smith',
+      email: 'agent@developerbee.com',
+      password: hashedPassword,
       role: 'AGENT',
+      status: 'ACTIVE',
+      stats: {
+        create: {
+          totalLeads: 10,
+          closedDeals: 2,
+          totalRevenue: 5000000,
+          rating: 4.8
+        }
+      }
     },
   });
 
-  const agent2 = await prisma.user.create({
+  const client = await prisma.user.upsert({
+    where: { email: 'client@example.com' },
+    update: {},
+    create: {
+      name: 'John Buyer',
+      email: 'client@example.com',
+      password: hashedPassword,
+      role: 'CLIENT',
+      status: 'ACTIVE',
+    },
+  });
+
+  // Properties
+  const prop1 = await prisma.property.create({
     data: {
-      name: 'Mike Broker',
-      email: 'mike@realestate.com',
-      password,
-      role: 'AGENT',
-    },
+      title: 'Luxury Villa in Beverly Hills',
+      description: 'A stunning 5-bedroom villa with a pool and garden.',
+      type: 'VILLA',
+      price: 4500000,
+      location: 'Beverly Hills, CA',
+      builder: 'Prestige Builders',
+      bedrooms: 5,
+      bathrooms: 6,
+      areaSqFt: 5000,
+      images: JSON.stringify([
+        'https://images.unsplash.com/photo-1613977257363-707ba9348227?auto=format&fit=crop&w=800&q=80',
+        'https://images.unsplash.com/photo-1613545325278-f24b0cae1224?auto=format&fit=crop&w=800&q=80'
+      ]),
+      amenities: 'Pool,Gym,Garden,Garage',
+      status: 'AVAILABLE'
+    }
   });
 
-  console.log('Created Users');
-
-  // 2. Stats
-  await prisma.agentStat.create({
-      data: { userId: agent1.id, totalRevenue: 1500000, closedDeals: 12, rating: 4.8 }
-  });
-  await prisma.agentStat.create({
-      data: { userId: agent2.id, totalRevenue: 980000, closedDeals: 8, rating: 4.5 }
-  });
-
-  // 3. Properties
-  const propertyTypes = ['APARTMENT', 'VILLA', 'PLOT'];
-  const locations = ['Downtown', 'Suburbs', 'Beachfront', 'City Center'];
-
-  const propertiesData = [
-      { title: 'Luxury Villa with Sea View', price: 2500000, beds: 5, baths: 6, area: 4500, type: 'VILLA' },
-      { title: 'Modern City Apartment', price: 450000, beds: 2, baths: 2, area: 1200, type: 'APARTMENT' },
-      { title: 'Spacious Family Home', price: 850000, beds: 4, baths: 3, area: 2800, type: 'VILLA' },
-      { title: 'Investment Plot', price: 150000, beds: 0, baths: 0, area: 5000, type: 'PLOT' },
-      { title: 'Penthouse Suite', price: 1200000, beds: 3, baths: 3, area: 2200, type: 'APARTMENT' },
-      { title: 'Cozy Studio', price: 250000, beds: 1, baths: 1, area: 600, type: 'APARTMENT' },
-  ];
-
-  for (const p of propertiesData) {
-      await prisma.property.create({
-          data: {
-              title: p.title,
-              price: p.price,
-              location: locations[Math.floor(Math.random() * locations.length)],
-              type: p.type,
-              bedrooms: p.beds,
-              bathrooms: p.baths,
-              areaSqFt: p.area,
-              images: JSON.stringify([
-                  `https://source.unsplash.com/800x600/?house,${p.type.toLowerCase()}`,
-                  `https://source.unsplash.com/800x600/?interior,living`
-              ]),
-              amenities: 'Pool,Gym,Parking,Security',
-              status: 'AVAILABLE'
-          }
-      });
-  }
-  console.log('Created Properties');
-
-  // 4. Leads
-  const leadsData = [
-      { name: 'John Doe', intent: 'BUYER', budget: 500000, status: 'NEW' },
-      { name: 'Jane Smith', intent: 'INVESTOR', budget: 1000000, status: 'CONTACTED' },
-      { name: 'Robert Johnson', intent: 'SELLER', budget: 0, status: 'NEW' },
-      { name: 'Emily Davis', intent: 'BUYER', budget: 300000, status: 'SITE_VISIT' },
-      { name: 'Michael Brown', intent: 'BUYER', budget: 750000, status: 'NEGOTIATION' },
-      { name: 'Jessica Wilson', intent: 'INVESTOR', budget: 2000000, status: 'CLOSED_WON' },
-      { name: 'David Miller', intent: 'BUYER', budget: 400000, status: 'FOLLOW_UP' },
-      { name: 'Sarah Anderson', intent: 'BUYER', budget: 600000, status: 'NEW' },
-  ];
-
-  for (const l of leadsData) {
-      const agentId = Math.random() > 0.3 ? (Math.random() > 0.5 ? agent1.id : agent2.id) : null;
-      const lead = await prisma.lead.create({
-          data: {
-              name: l.name,
-              email: l.name.toLowerCase().replace(' ', '.') + '@example.com',
-              phone: '+1 555 ' + Math.floor(Math.random() * 9000 + 1000),
-              intent: l.intent,
-              budgetMin: l.budget * 0.9,
-              budgetMax: l.budget * 1.1,
-              status: l.status,
-              source: ['ADS', 'REFERRAL', 'WEB'][Math.floor(Math.random() * 3)],
-              score: Math.floor(Math.random() * 60) + 40,
-              agentId
-          }
-      });
-
-      // Interactions
-      await prisma.interaction.create({
-          data: {
-              leadId: lead.id,
-              type: 'SYSTEM',
-              content: 'Lead created from Landing Page'
-          }
-      });
-
-      if (l.status !== 'NEW') {
-          await prisma.interaction.create({
-              data: {
-                  leadId: lead.id,
-                  type: 'CALL',
-                  content: 'Initial discovery call completed. Client is interested in 3BHK.'
-              }
-          });
-      }
-  }
-  console.log('Created Leads');
-
-  // 5. Automations
-  await prisma.automation.create({
-      data: {
-          name: 'New Lead Welcome',
-          triggerType: 'STATUS_CHANGE',
-          triggerValue: 'NEW',
-          isActive: true,
-          actions: JSON.stringify([
-              { icon: 'Mail', text: "Send Welcome Email" },
-              { icon: 'Clock', text: "Wait 10 Minutes" },
-              { icon: 'MessageSquare', text: "Send WhatsApp Intro" },
-              { icon: 'Clock', text: "Wait 24 Hours" },
-              { icon: 'Play', text: "Assign Task: Follow-up Call" }
-          ])
-      }
+  const prop2 = await prisma.property.create({
+    data: {
+      title: 'Modern Apartment in Downtown',
+      description: 'High-rise apartment with city view.',
+      type: 'APARTMENT',
+      price: 850000,
+      location: 'Downtown, NY',
+      builder: 'Urban Living',
+      bedrooms: 2,
+      bathrooms: 2,
+      areaSqFt: 1200,
+      images: JSON.stringify([
+        'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=800&q=80',
+        'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=800&q=80'
+      ]),
+      amenities: 'Gym,Concierge,Rooftop',
+      status: 'AVAILABLE'
+    }
   });
 
-  await prisma.automation.create({
-      data: {
-          name: 'Site Visit Confirmation',
-          triggerType: 'STATUS_CHANGE',
-          triggerValue: 'SITE_VISIT',
-          isActive: true,
-          actions: JSON.stringify([
-              { icon: 'Mail', text: "Send Location & Details" },
-              { icon: 'Clock', text: "Wait 1 Hour Before" },
-              { icon: 'MessageSquare', text: "Send SMS Reminder" }
-          ])
-      }
+  // Leads
+  await prisma.lead.create({
+    data: {
+      name: 'Alice Wonder',
+      email: 'alice@example.com',
+      phone: '1234567890',
+      budgetMin: 800000,
+      budgetMax: 1000000,
+      location: 'Downtown, NY',
+      propertyType: 'APARTMENT',
+      intent: 'BUYER',
+      status: 'NEW',
+      agentId: agent.id
+    }
   });
 
-  await prisma.automation.create({
-      data: {
-          name: 'Cold Lead Re-engagement',
-          triggerType: 'NO_ACTIVITY',
-          triggerValue: '30_DAYS',
-          isActive: false,
-          actions: JSON.stringify([
-              { icon: 'Mail', text: "Send 'Still Looking?' Email" },
-              { icon: 'Clock', text: "Wait 3 Days" },
-              { icon: 'Play', text: "Move to 'ARCHIVED' if no reply" }
-          ])
-      }
+  await prisma.lead.create({
+    data: {
+      name: 'Bob Builder',
+      email: 'bob@example.com',
+      phone: '0987654321',
+      budgetMin: 4000000,
+      budgetMax: 5000000,
+      location: 'Beverly Hills, CA',
+      propertyType: 'VILLA',
+      intent: 'BUYER',
+      status: 'CONTACTED',
+      agentId: agent.id
+    }
   });
-  console.log('Created Automations');
 
-  console.log('Seeding finished.');
+  console.log('Seed completed!');
 }
 
 main()
