@@ -39,7 +39,14 @@ def verify_enterprise():
         page.screenshot(path="/home/jules/verification/8_admin_settings.png")
         print("Settings screenshot taken.")
 
-        # 5. Agent Dashboard (Personalized)
+        # 5. Audit Logs (Security)
+        print("Navigating to Audit Logs...")
+        page.goto("http://localhost:3000/admin/logs")
+        page.wait_for_timeout(1000)
+        page.screenshot(path="/home/jules/verification/10_admin_logs.png")
+        print("Audit Logs screenshot taken.")
+
+        # 6. Agent Dashboard (Personalized)
         print("Navigating to Agent Dashboard...")
         page.add_init_script("""
              localStorage.setItem('user', JSON.stringify({role: 'AGENT', name: 'Agent Smith', stats: {totalLeads: 45, closedDeals: 12, totalRevenue: 12500000, rating: 4.9}}));
@@ -49,7 +56,14 @@ def verify_enterprise():
         page.screenshot(path="/home/jules/verification/7_agent_enterprise.png")
         print("Agent Dashboard screenshot taken.")
 
-        # 6. Client Chatbot Check
+        # 7. Agent Leads List (Lifecycle Check)
+        print("Navigating to Agent Leads List...")
+        page.goto("http://localhost:3000/agent/leads")
+        page.wait_for_timeout(1500)
+        page.screenshot(path="/home/jules/verification/11_agent_leads.png")
+        print("Agent Leads List screenshot taken.")
+
+        # 8. Client Chatbot Check
         print("Navigating to Client Home...")
         page.goto("http://localhost:3000/client")
         page.wait_for_timeout(1000)
