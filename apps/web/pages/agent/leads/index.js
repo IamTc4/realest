@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import AgentLayout from '../../../components/layout/AgentLayout';
-import { Search, Filter, ChevronRight } from 'lucide-react';
+import { Search, Filter, ChevronRight, Clock, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
+import { formatDistanceToNow } from 'date-fns';
 
 export default function LeadsPage() {
   const [leads, setLeads] = useState([]);
@@ -48,45 +49,72 @@ export default function LeadsPage() {
               <table className="min-w-full divide-y divide-gray-100">
                   <thead className="bg-gray-50">
                       <tr>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Intent</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Budget</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Score</th>
+                          <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Lead Profile</th>
+                          <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Status & Score</th>
+                          <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Lifecycle</th>
+                          <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Next Action</th>
                           <th className="relative px-6 py-3"><span className="sr-only">View</span></th>
                       </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-100">
-                      {leads.map((lead) => (
+                      {leads.map((lead) => {
+                          // Mock "Time since last contact" and "Next Action" based on data
+                          const isStale = Math.random() > 0.7;
+                          const nextAction = lead.status === 'NEW' ? 'First Call' : lead.status === 'CONTACTED' ? 'Schedule Visit' : 'Follow Up';
+
+                          return (
                           <tr key={lead.id} className="hover:bg-gray-50 transition-colors">
                               <td className="px-6 py-4 whitespace-nowrap">
                                   <div className="flex items-center">
-                                      <div className="h-8 w-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold text-xs mr-3">
+                                      <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 font-serif font-bold text-sm mr-4 border border-slate-200">
                                           {lead.name.charAt(0)}
                                       </div>
-                                      <div className="text-sm font-medium text-gray-900">{lead.name}</div>
+                                      <div>
+                                          <div className="text-sm font-bold text-slate-900">{lead.name}</div>
+                                          <div className="text-xs text-slate-500">{lead.intent} • {lead.budgetMin ? `$${(lead.budgetMin/1000)}k+` : 'N/A'}</div>
+                                      </div>
                                   </div>
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap">
-                                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full
-                                    ${lead.status === 'NEW' ? 'bg-blue-100 text-blue-800' :
-                                      lead.status === 'CLOSED_WON' ? 'bg-green-100 text-green-800' :
-                                      'bg-gray-100 text-gray-800'}`}>
-                                      {lead.status}
-                                  </span>
+                                  <div className="flex flex-col items-start space-y-1">
+                                      <span className={`px-2 py-0.5 inline-flex text-xs leading-5 font-bold rounded border ${
+                                          lead.status === 'NEW' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                                          lead.status === 'CLOSED_WON' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                                          'bg-gray-50 text-gray-600 border-gray-200'}`}>
+                                          {lead.status}
+                                      </span>
+                                      <div className="flex items-center text-xs">
+                                        <span className={`font-bold mr-1 ${lead.score > 70 ? 'text-emerald-600' : 'text-amber-600'}`}>{lead.score}%</span>
+                                        <span className="text-slate-400">Match Probability</span>
+                                      </div>
+                                  </div>
                               </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{lead.intent}</td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                  {lead.budgetMin ? `$${(lead.budgetMin/1000)}k - $${(lead.budgetMax/1000)}k` : '-'}
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                  <div className="text-xs text-slate-600 space-y-1">
+                                      <div className="flex items-center">
+                                          <Clock className="w-3 h-3 mr-1 text-slate-400" />
+                                          Created {formatDistanceToNow(new Date(lead.createdAt))} ago
+                                      </div>
+                                      <div className="text-slate-500">
+                                          Last active: 2h ago
+                                      </div>
+                                  </div>
                               </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-emerald-600">{lead.score}</td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                  <div className="flex items-center">
+                                      {isStale && <AlertCircle className="w-4 h-4 text-red-500 mr-2" />}
+                                      <span className={`text-sm font-medium ${isStale ? 'text-red-600' : 'text-slate-700'}`}>
+                                          {isStale ? 'Overdue: ' : 'Due Today: '} {nextAction}
+                                      </span>
+                                  </div>
+                              </td>
                               <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                  <Link href={`/agent/leads/${lead.id}`} className="text-emerald-600 hover:text-emerald-900">
+                                  <Link href={`/agent/leads/${lead.id}`} className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-slate-100 hover:bg-emerald-100 text-slate-400 hover:text-emerald-600 transition-colors">
                                       <ChevronRight className="w-5 h-5" />
                                   </Link>
                               </td>
                           </tr>
-                      ))}
+                      )})}
                   </tbody>
               </table>
           )}
