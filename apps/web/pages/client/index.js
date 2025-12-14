@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import ClientLayout from '../../components/layout/ClientLayout';
-import { Search, MapPin, Bed, Bath, ArrowRight } from 'lucide-react';
+import { Search, MapPin, Bed, Bath, ArrowRight, Building } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 
@@ -117,5 +117,3 @@ const BuildingIcon = ({ type }) => {
     // Simple icon switching
     return <Building className="w-6 h-6" />;
 }
-
-import { Building } from 'lucide-react';
