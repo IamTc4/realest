@@ -1,16 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import AdminLayout from '../../components/layout/AdminLayout';
-import { DollarSign, Users, TrendingUp, Activity } from 'lucide-react';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, Legend } from 'recharts';
+import { DollarSign, Users, Building, TrendingUp, AlertTriangle, UserCheck } from 'lucide-react';
+
+const COLORS = ['#059669', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6'];
 
 export default function AdminDashboard() {
-  const [stats, setStats] = useState({
-      totalLeads: 0,
-      newLeads: 0,
-      closedWon: 0,
-      totalRevenue: 0,
-      leadStatusDistribution: [],
-      topAgents: []
-  });
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -18,84 +15,208 @@ export default function AdminDashboard() {
         headers: { 'Authorization': `Bearer ${token}` }
     })
     .then(res => res.json())
-    .then(data => setStats(data))
+    .then(data => {
+        setData(data);
+        setLoading(false);
+    })
     .catch(console.error);
   }, []);
 
+  if (loading) return <AdminLayout><div className="flex h-screen items-center justify-center text-slate-500">Loading Enterprise Dashboard...</div></AdminLayout>;
+
   return (
     <AdminLayout>
+       {/* Top KPI Cards */}
        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-              <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-gray-500 text-sm font-medium">Total Revenue</h3>
-                  <div className="p-2 bg-emerald-50 rounded-lg"><DollarSign className="w-5 h-5 text-emerald-600" /></div>
-              </div>
-              <p className="text-3xl font-bold text-gray-900">${stats.totalRevenue.toLocaleString()}</p>
-              <p className="text-sm text-emerald-600 mt-2 flex items-center"><TrendingUp className="w-3 h-3 mr-1" /> +12% from last month</p>
-          </div>
-
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-              <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-gray-500 text-sm font-medium">Total Leads</h3>
-                  <div className="p-2 bg-blue-50 rounded-lg"><Users className="w-5 h-5 text-blue-600" /></div>
-              </div>
-              <p className="text-3xl font-bold text-gray-900">{stats.totalLeads}</p>
-              <p className="text-sm text-blue-600 mt-2 font-medium">{stats.newLeads} New today</p>
-          </div>
-
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-              <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-gray-500 text-sm font-medium">Conversion Rate</h3>
-                  <div className="p-2 bg-purple-50 rounded-lg"><Activity className="w-5 h-5 text-purple-600" /></div>
-              </div>
-              <p className="text-3xl font-bold text-gray-900">{stats.totalLeads > 0 ? ((stats.closedWon / stats.totalLeads) * 100).toFixed(1) : 0}%</p>
-              <p className="text-sm text-gray-400 mt-2">Target: 15%</p>
-          </div>
+          <KpiCard title="Total Revenue" value={`$${(data.kpi.totalRevenue / 1000000).toFixed(2)}M`} change="+12.5%" icon={DollarSign} color="text-emerald-600" bg="bg-emerald-50" />
+          <KpiCard title="Total Leads" value={data.kpi.totalLeads} change="+8.2%" icon={Users} color="text-blue-600" bg="bg-blue-50" />
+          <KpiCard title="Active Inventory" value={data.kpi.activeProperties} sub={`Out of ${data.kpi.totalProperties} Total`} icon={Building} color="text-indigo-600" bg="bg-indigo-50" />
+          <KpiCard title="Conversion Rate" value={`${((data.conversionFunnel.find(f=>f.name==='CLOSED_WON')?.value / data.kpi.totalLeads) * 100).toFixed(1)}%`} change="+2.1%" icon={TrendingUp} color="text-amber-600" bg="bg-amber-50" />
        </div>
 
-       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-           {/* Lead Distribution Mock Chart */}
-           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-               <h2 className="text-lg font-bold text-gray-900 mb-6">Lead Pipeline</h2>
-               <div className="space-y-4">
-                   {stats.leadStatusDistribution.map((item) => (
-                       <div key={item.status}>
-                           <div className="flex justify-between text-sm mb-1">
-                               <span className="font-medium text-gray-700">{item.status}</span>
-                               <span className="text-gray-500">{item._count.status}</span>
-                           </div>
-                           <div className="w-full bg-gray-100 rounded-full h-2">
-                               <div className="bg-emerald-500 h-2 rounded-full" style={{ width: `${(item._count.status / stats.totalLeads) * 100}%` }}></div>
-                           </div>
-                       </div>
-                   ))}
+       {/* Main Charts Section */}
+       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+           {/* Revenue Trend */}
+           <div className="lg:col-span-2 bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+               <h3 className="text-lg font-bold text-slate-800 mb-4 font-serif">Revenue Performance</h3>
+               <div className="h-80">
+                   <ResponsiveContainer width="100%" height="100%">
+                       <AreaChart data={data.revenueTrend}>
+                           <defs>
+                               <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
+                                   <stop offset="5%" stopColor="#059669" stopOpacity={0.1}/>
+                                   <stop offset="95%" stopColor="#059669" stopOpacity={0}/>
+                               </linearGradient>
+                           </defs>
+                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                           <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748b'}} />
+                           <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b'}} tickFormatter={(val) => `$${val/1000}k`} />
+                           <Tooltip contentStyle={{backgroundColor: '#1e293b', border: 'none', borderRadius: '8px', color: '#fff'}} itemStyle={{color: '#fff'}} />
+                           <Area type="monotone" dataKey="revenue" stroke="#059669" strokeWidth={3} fillOpacity={1} fill="url(#colorRev)" />
+                       </AreaChart>
+                   </ResponsiveContainer>
                </div>
            </div>
 
-           {/* Top Agents */}
+           {/* Lead Sources */}
            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-               <h2 className="text-lg font-bold text-gray-900 mb-6">Top Performing Agents</h2>
-               <div className="space-y-6">
-                   {stats.topAgents.map((stat, i) => (
-                       <div key={i} className="flex items-center justify-between">
-                           <div className="flex items-center">
-                               <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center font-bold text-gray-600 mr-3">
-                                   {stat.user.name.charAt(0)}
-                               </div>
-                               <div>
-                                   <p className="font-medium text-gray-900">{stat.user.name}</p>
-                                   <p className="text-xs text-gray-500">{stat.totalLeads} Active Leads</p>
-                               </div>
-                           </div>
-                           <div className="text-right">
-                               <p className="font-bold text-emerald-600">${stat.totalRevenue.toLocaleString()}</p>
-                               <p className="text-xs text-gray-400">Revenue</p>
-                           </div>
-                       </div>
-                   ))}
+               <h3 className="text-lg font-bold text-slate-800 mb-4 font-serif">Lead Sources</h3>
+               <div className="h-60">
+                   <ResponsiveContainer width="100%" height="100%">
+                       <PieChart>
+                           <Pie
+                               data={data.leadSources}
+                               cx="50%"
+                               cy="50%"
+                               innerRadius={60}
+                               outerRadius={80}
+                               paddingAngle={5}
+                               dataKey="value"
+                           >
+                               {data.leadSources.map((entry, index) => (
+                                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                               ))}
+                           </Pie>
+                           <Tooltip />
+                           <Legend verticalAlign="bottom" height={36}/>
+                       </PieChart>
+                   </ResponsiveContainer>
+               </div>
+               <div className="mt-4 text-center">
+                   <p className="text-sm text-slate-500">Most leads come from <span className="font-bold text-emerald-600">Digital Campaigns</span></p>
                </div>
            </div>
+       </div>
+
+       {/* Secondary Section */}
+       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+           {/* Conversion Funnel */}
+           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+               <h3 className="text-lg font-bold text-slate-800 mb-4 font-serif">Sales Funnel</h3>
+               <div className="h-64">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={data.conversionFunnel} layout="vertical">
+                            <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
+                            <XAxis type="number" hide />
+                            <YAxis dataKey="name" type="category" width={100} tick={{fontSize: 12}} />
+                            <Tooltip cursor={{fill: 'transparent'}} />
+                            <Bar dataKey="value" fill="#3b82f6" radius={[0, 4, 4, 0]} barSize={20}>
+                                {data.conversionFunnel.map((entry, index) => (
+                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                ))}
+                            </Bar>
+                        </BarChart>
+                    </ResponsiveContainer>
+               </div>
+           </div>
+
+           {/* Alerts & Notifications */}
+           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+               <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-bold text-slate-800 font-serif">System Alerts</h3>
+                    <span className="bg-red-100 text-red-600 text-xs font-bold px-2 py-1 rounded-full uppercase">3 Action Required</span>
+               </div>
+               <div className="space-y-4">
+                   <AlertItem type="critical" message="5 Premium Leads unassigned for > 2 hours" time="10 mins ago" />
+                   <AlertItem type="warning" message="Inventory low in 'Downtown' sector" time="2 hours ago" />
+                   <AlertItem type="info" message="Weekly Agent Performance Report generated" time="5 hours ago" />
+                   <AlertItem type="warning" message="Agent Sarah has 3 overdue follow-ups" time="1 day ago" />
+               </div>
+           </div>
+       </div>
+
+       {/* Top Agents Table */}
+       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+           <div className="p-6 border-b border-gray-100">
+               <h3 className="text-lg font-bold text-slate-800 font-serif">Top Performing Agents</h3>
+           </div>
+           <table className="min-w-full divide-y divide-gray-100">
+               <thead className="bg-slate-50">
+                   <tr>
+                       <th className="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Agent</th>
+                       <th className="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Revenue</th>
+                       <th className="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Deals</th>
+                       <th className="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Rating</th>
+                       <th className="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Efficiency</th>
+                   </tr>
+               </thead>
+               <tbody className="bg-white divide-y divide-gray-100">
+                   {data.topAgents.map((agent, i) => (
+                       <tr key={agent.id} className="hover:bg-slate-50">
+                           <td className="px-6 py-4 whitespace-nowrap">
+                               <div className="flex items-center">
+                                   <div className="flex-shrink-0 h-10 w-10">
+                                       <div className="h-10 w-10 rounded-full bg-slate-200 flex items-center justify-center font-bold text-slate-600">
+                                           {agent.name.charAt(0)}
+                                       </div>
+                                   </div>
+                                   <div className="ml-4">
+                                       <div className="text-sm font-medium text-slate-900">{agent.name}</div>
+                                       <div className="text-xs text-slate-500">{agent.email}</div>
+                                   </div>
+                               </div>
+                           </td>
+                           <td className="px-6 py-4 whitespace-nowrap">
+                               <div className="text-sm font-bold text-emerald-600">${(agent.stats?.totalRevenue || 0).toLocaleString()}</div>
+                           </td>
+                           <td className="px-6 py-4 whitespace-nowrap">
+                               <div className="text-sm text-slate-900">{agent.stats?.closedDeals || 0}</div>
+                           </td>
+                           <td className="px-6 py-4 whitespace-nowrap">
+                               <div className="flex items-center text-sm text-amber-500 font-bold">
+                                   ★ {agent.stats?.rating || 0}
+                               </div>
+                           </td>
+                           <td className="px-6 py-4 whitespace-nowrap">
+                               <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-emerald-100 text-emerald-800">
+                                   High
+                               </span>
+                           </td>
+                       </tr>
+                   ))}
+               </tbody>
+           </table>
        </div>
     </AdminLayout>
   );
+}
+
+const KpiCard = ({ title, value, change, sub, icon: Icon, color, bg }) => (
+    <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+        <div className="flex justify-between items-start mb-4">
+            <div>
+                <p className="text-sm font-medium text-slate-500">{title}</p>
+                <h3 className="text-3xl font-bold text-slate-900 mt-1">{value}</h3>
+            </div>
+            <div className={`p-3 rounded-lg ${bg}`}>
+                <Icon className={`h-6 w-6 ${color}`} />
+            </div>
+        </div>
+        <div>
+            {change && <span className={`text-sm font-bold ${change.startsWith('+') ? 'text-emerald-600' : 'text-red-600'}`}>{change}</span>}
+            {sub && <span className="text-xs text-slate-400 ml-2">{sub}</span>}
+            <span className="text-xs text-slate-400 ml-1">vs last month</span>
+        </div>
+    </div>
+);
+
+const AlertItem = ({ type, message, time }) => {
+    let icon, color, bg;
+    switch(type) {
+        case 'critical': icon = AlertTriangle; color = 'text-red-600'; bg = 'bg-red-50'; break;
+        case 'warning': icon = AlertTriangle; color = 'text-amber-600'; bg = 'bg-amber-50'; break;
+        default: icon = UserCheck; color = 'text-blue-600'; bg = 'bg-blue-50'; break;
+    }
+    const Icon = icon;
+    return (
+        <div className="flex items-start space-x-3 p-3 rounded-lg hover:bg-slate-50 transition-colors">
+            <div className={`p-2 rounded-full ${bg} flex-shrink-0`}>
+                <Icon className={`w-4 h-4 ${color}`} />
+            </div>
+            <div className="flex-1">
+                <p className="text-sm font-medium text-slate-800">{message}</p>
+                <p className="text-xs text-slate-400 mt-1">{time}</p>
+            </div>
+        </div>
+    )
 }

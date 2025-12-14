@@ -6,11 +6,20 @@ const prisma = new PrismaClient();
 async function main() {
   const hashedPassword = await bcrypt.hash('password123', 10);
 
-  // Users
-  const admin = await prisma.user.upsert({
-    where: { email: 'admin@developerbee.com' },
-    update: {},
-    create: {
+  // 1. Cleanup
+  try {
+    await prisma.interaction.deleteMany();
+    await prisma.task.deleteMany();
+    await prisma.lead.deleteMany();
+    await prisma.savedProperty.deleteMany();
+    await prisma.property.deleteMany();
+    await prisma.agentStat.deleteMany();
+    await prisma.user.deleteMany();
+  } catch(e) { console.log('Cleanup skipped or partial'); }
+
+  // 2. Users
+  const admin = await prisma.user.create({
+    data: {
       name: 'Admin User',
       email: 'admin@developerbee.com',
       password: hashedPassword,
@@ -19,30 +28,30 @@ async function main() {
     },
   });
 
-  const agent = await prisma.user.upsert({
-    where: { email: 'agent@developerbee.com' },
-    update: {},
-    create: {
+  const agent1 = await prisma.user.create({
+    data: {
       name: 'Agent Smith',
       email: 'agent@developerbee.com',
       password: hashedPassword,
       role: 'AGENT',
       status: 'ACTIVE',
-      stats: {
-        create: {
-          totalLeads: 10,
-          closedDeals: 2,
-          totalRevenue: 5000000,
-          rating: 4.8
-        }
-      }
+      stats: { create: { totalLeads: 45, closedDeals: 12, totalRevenue: 12500000, rating: 4.9 } }
     },
   });
 
-  const client = await prisma.user.upsert({
-    where: { email: 'client@example.com' },
-    update: {},
-    create: {
+  const agent2 = await prisma.user.create({
+    data: {
+      name: 'Sarah Connor',
+      email: 'sarah@developerbee.com',
+      password: hashedPassword,
+      role: 'AGENT',
+      status: 'ACTIVE',
+      stats: { create: { totalLeads: 38, closedDeals: 8, totalRevenue: 8500000, rating: 4.7 } }
+    },
+  });
+
+  const client = await prisma.user.create({
+    data: {
       name: 'John Buyer',
       email: 'client@example.com',
       password: hashedPassword,
@@ -51,79 +60,93 @@ async function main() {
     },
   });
 
-  // Properties
-  const prop1 = await prisma.property.create({
-    data: {
-      title: 'Luxury Villa in Beverly Hills',
-      description: 'A stunning 5-bedroom villa with a pool and garden.',
-      type: 'VILLA',
-      price: 4500000,
-      location: 'Beverly Hills, CA',
-      builder: 'Prestige Builders',
-      bedrooms: 5,
-      bathrooms: 6,
-      areaSqFt: 5000,
-      images: JSON.stringify([
-        'https://images.unsplash.com/photo-1613977257363-707ba9348227?auto=format&fit=crop&w=800&q=80',
-        'https://images.unsplash.com/photo-1613545325278-f24b0cae1224?auto=format&fit=crop&w=800&q=80'
-      ]),
-      amenities: 'Pool,Gym,Garden,Garage',
-      status: 'AVAILABLE'
-    }
-  });
+  // 3. Properties (More data)
+  const propertyTypes = ['APARTMENT', 'VILLA', 'PLOT', 'COMMERCIAL'];
+  const locations = ['Downtown', 'Beverly Hills', 'Suburbs', 'Beachfront', 'Tech Park', 'Green Valley'];
 
-  const prop2 = await prisma.property.create({
-    data: {
-      title: 'Modern Apartment in Downtown',
-      description: 'High-rise apartment with city view.',
-      type: 'APARTMENT',
-      price: 850000,
-      location: 'Downtown, NY',
-      builder: 'Urban Living',
-      bedrooms: 2,
-      bathrooms: 2,
-      areaSqFt: 1200,
-      images: JSON.stringify([
-        'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=800&q=80',
-        'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=800&q=80'
-      ]),
-      amenities: 'Gym,Concierge,Rooftop',
-      status: 'AVAILABLE'
-    }
-  });
+  const properties = [];
+  for (let i = 0; i < 20; i++) {
+    const type = propertyTypes[Math.floor(Math.random() * propertyTypes.length)];
+    const price = Math.floor(Math.random() * 5000000) + 200000;
+    const prop = await prisma.property.create({
+      data: {
+        title: `${type === 'VILLA' ? 'Luxury ' : 'Modern '}${type} in ${locations[i % locations.length]}`,
+        description: 'A premium property with state-of-the-art amenities.',
+        type: type,
+        status: Math.random() > 0.8 ? 'SOLD' : 'AVAILABLE',
+        price: price,
+        location: locations[i % locations.length],
+        builder: 'Premium Builders Inc',
+        bedrooms: Math.floor(Math.random() * 5) + 1,
+        bathrooms: Math.floor(Math.random() * 4) + 1,
+        areaSqFt: Math.floor(Math.random() * 4000) + 800,
+        images: JSON.stringify([
+          `https://source.unsplash.com/800x600/?house,${type.toLowerCase()}`,
+          'https://source.unsplash.com/800x600/?interior,living'
+        ]),
+        amenities: 'Pool,Gym,Security,Parking',
+      }
+    });
+    properties.push(prop);
+  }
 
-  // Leads
-  await prisma.lead.create({
-    data: {
-      name: 'Alice Wonder',
-      email: 'alice@example.com',
-      phone: '1234567890',
-      budgetMin: 800000,
-      budgetMax: 1000000,
-      location: 'Downtown, NY',
-      propertyType: 'APARTMENT',
-      intent: 'BUYER',
-      status: 'NEW',
-      agentId: agent.id
-    }
-  });
+  // 4. Leads & Historical Data
+  const leadStatuses = ['NEW', 'CONTACTED', 'SITE_VISIT', 'NEGOTIATION', 'CLOSED_WON', 'CLOSED_LOST'];
+  const leadSources = ['WEBSITE', 'FACEBOOK', 'GOOGLE_ADS', 'REFERRAL', 'WHATSAPP'];
+  const intents = ['BUYER', 'INVESTOR', 'SELLER'];
 
-  await prisma.lead.create({
-    data: {
-      name: 'Bob Builder',
-      email: 'bob@example.com',
-      phone: '0987654321',
-      budgetMin: 4000000,
-      budgetMax: 5000000,
-      location: 'Beverly Hills, CA',
-      propertyType: 'VILLA',
-      intent: 'BUYER',
-      status: 'CONTACTED',
-      agentId: agent.id
-    }
-  });
+  // Generate 100 leads over last 6 months
+  const now = new Date();
+  for (let i = 0; i < 100; i++) {
+    const monthsAgo = Math.floor(Math.random() * 6);
+    const createdAt = new Date(now.getFullYear(), now.getMonth() - monthsAgo, Math.floor(Math.random() * 28));
 
-  console.log('Seed completed!');
+    const status = leadStatuses[Math.floor(Math.random() * leadStatuses.length)];
+    const source = leadSources[Math.floor(Math.random() * leadSources.length)];
+
+    // Weighted Agent Assignment
+    const assignedAgent = Math.random() > 0.5 ? agent1 : (Math.random() > 0.5 ? agent2 : null);
+
+    const lead = await prisma.lead.create({
+      data: {
+        name: `Lead ${i + 1}`,
+        email: `lead${i + 1}@example.com`,
+        phone: `+1555000${i.toString().padStart(4, '0')}`,
+        budgetMin: 500000,
+        budgetMax: 1500000,
+        location: locations[Math.floor(Math.random() * locations.length)],
+        propertyType: propertyTypes[Math.floor(Math.random() * propertyTypes.length)],
+        timeline: 'Immediate',
+        intent: intents[Math.floor(Math.random() * intents.length)],
+        status: status,
+        source: source,
+        score: Math.floor(Math.random() * 100),
+        agentId: assignedAgent ? assignedAgent.id : null,
+        createdAt: createdAt,
+        updatedAt: createdAt
+      }
+    });
+
+    // Add interactions
+    if (status !== 'NEW') {
+        await prisma.interaction.create({
+            data: {
+                leadId: lead.id,
+                type: 'CALL',
+                content: 'Introductory call completed.',
+                createdAt: new Date(createdAt.getTime() + 86400000)
+            }
+        });
+    }
+    if (status === 'CLOSED_WON') {
+         // Update agent revenue manually for this seed
+         if (assignedAgent) {
+             // In real app we'd update atomic, here just simplified
+         }
+    }
+  }
+
+  console.log('Deep Seeding completed!');
 }
 
 main()
