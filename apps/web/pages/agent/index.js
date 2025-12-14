@@ -20,6 +20,13 @@ export default function AgentDashboard() {
 
   if (!user) return <AgentLayout><div className="flex h-screen items-center justify-center">Loading...</div></AgentLayout>;
 
+  const safeUser = user; // Ensure safeUser is defined from user
+
+  // Agent Score Calculation (Mocked logic)
+  // Score = (ConversionRate * 0.4) + (ResponseSpeedScore * 0.3) + (ActivityScore * 0.3)
+  const conversionRate = (safeUser.stats?.closedDeals / (safeUser.stats?.totalLeads || 1)) * 100;
+  const agentScore = Math.min(100, Math.floor((conversionRate * 0.4) + (90 * 0.3) + (85 * 0.3)));
+
   // Mock Data for Agent Visuals (since API gives aggregates mainly)
   const performanceData = [
       { day: 'Mon', leads: 2, calls: 15 },
@@ -52,10 +59,10 @@ export default function AgentDashboard() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <StatCard label="Assigned Leads" value={user.stats?.totalLeads || 0} icon={Users} color="text-blue-600" bg="bg-blue-50" />
-          <StatCard label="Closed Deals" value={user.stats?.closedDeals || 0} icon={Briefcase} color="text-emerald-600" bg="bg-emerald-50" />
-          <StatCard label="Revenue Generated" value={`$${((user.stats?.totalRevenue || 0)/1000).toFixed(0)}k`} icon={DollarSign} color="text-purple-600" bg="bg-purple-50" />
-          <StatCard label="Client Rating" value={user.stats?.rating || 0} icon={TrendingUp} color="text-orange-600" bg="bg-orange-50" />
+          <StatCard label="Assigned Leads" value={safeUser.stats?.totalLeads || 0} sub="Today: +2" icon={Users} color="text-blue-600" bg="bg-blue-50" />
+          <StatCard label="Agent Score" value={agentScore} sub="Top 10%" icon={TrendingUp} color="text-amber-600" bg="bg-amber-50" />
+          <StatCard label="Revenue Generated" value={`$${((safeUser.stats?.totalRevenue || 0)/1000).toFixed(0)}k`} sub="This Month" icon={DollarSign} color="text-purple-600" bg="bg-purple-50" />
+          <StatCard label="Closed Deals" value={safeUser.stats?.closedDeals || 0} sub="Avg deal: 14 days" icon={Briefcase} color="text-emerald-600" bg="bg-emerald-50" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
@@ -160,14 +167,15 @@ export default function AgentDashboard() {
   );
 }
 
-const StatCard = ({ label, value, icon: Icon, color, bg }) => (
+const StatCard = ({ label, value, sub, icon: Icon, color, bg }) => (
     <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center">
         <div className={`w-12 h-12 rounded-full ${bg} flex items-center justify-center mr-4`}>
             <Icon className={`w-6 h-6 ${color}`} />
         </div>
         <div>
             <p className="text-sm text-slate-500 font-medium">{label}</p>
-            <p className="text-2xl font-bold text-slate-900">{value}</p>
+            <h3 className="text-2xl font-bold text-slate-900">{value}</h3>
+            {sub && <p className="text-xs text-slate-400 font-medium mt-1">{sub}</p>}
         </div>
     </div>
 );

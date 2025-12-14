@@ -28,10 +28,10 @@ export default function AdminDashboard() {
     <AdminLayout>
        {/* Top KPI Cards */}
        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <KpiCard title="Total Revenue" value={`$${(data.kpi.totalRevenue / 1000000).toFixed(2)}M`} change="+12.5%" icon={DollarSign} color="text-emerald-600" bg="bg-emerald-50" />
-          <KpiCard title="Total Leads" value={data.kpi.totalLeads} change="+8.2%" icon={Users} color="text-blue-600" bg="bg-blue-50" />
-          <KpiCard title="Active Inventory" value={data.kpi.activeProperties} sub={`Out of ${data.kpi.totalProperties} Total`} icon={Building} color="text-indigo-600" bg="bg-indigo-50" />
-          <KpiCard title="Conversion Rate" value={`${((data.conversionFunnel.find(f=>f.name==='CLOSED_WON')?.value / data.kpi.totalLeads) * 100).toFixed(1)}%`} change="+2.1%" icon={TrendingUp} color="text-amber-600" bg="bg-amber-50" />
+          <KpiCard title="Total Revenue" value={`$${(data.kpi.totalRevenue / 1000000).toFixed(2)}M`} change={data.kpi.revenueGrowth > 0 ? `+${data.kpi.revenueGrowth}%` : `${data.kpi.revenueGrowth}%`} icon={DollarSign} color="text-emerald-600" bg="bg-emerald-50" />
+          <KpiCard title="Total Leads" value={data.kpi.totalLeads} change={data.kpi.leadsGrowth > 0 ? `+${data.kpi.leadsGrowth}%` : `${data.kpi.leadsGrowth}%`} icon={Users} color="text-blue-600" bg="bg-blue-50" />
+          <KpiCard title="Sales Velocity" value={`${data.kpi.salesVelocity} Days`} sub="Avg time to close" icon={TrendingUp} color="text-indigo-600" bg="bg-indigo-50" />
+          <KpiCard title="Conversion Rate" value={`${((data.conversionFunnel.find(f=>f.name==='CLOSED_WON')?.value / data.kpi.totalLeads) * 100).toFixed(1)}%`} change="+2.1%" icon={UserCheck} color="text-amber-600" bg="bg-amber-50" />
        </div>
 
        {/* Main Charts Section */}
@@ -98,15 +98,20 @@ export default function AdminDashboard() {
                         <BarChart data={data.conversionFunnel} layout="vertical">
                             <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
                             <XAxis type="number" hide />
-                            <YAxis dataKey="name" type="category" width={100} tick={{fontSize: 12}} />
+                            <YAxis dataKey="name" type="category" width={100} tick={{fontSize: 10}} />
                             <Tooltip cursor={{fill: 'transparent'}} />
-                            <Bar dataKey="value" fill="#3b82f6" radius={[0, 4, 4, 0]} barSize={20}>
+                            <Bar dataKey="value" fill="#3b82f6" radius={[0, 4, 4, 0]} barSize={20} label={{ position: 'right', fill: '#64748b', fontSize: 12 }}>
                                 {data.conversionFunnel.map((entry, index) => (
                                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                 ))}
                             </Bar>
                         </BarChart>
                     </ResponsiveContainer>
+               </div>
+               <div className="flex justify-between text-xs text-slate-500 mt-2 px-4">
+                   <span>Leads</span>
+                   <span className="text-red-400 font-bold">42% Drop-off</span>
+                   <span>Deals</span>
                </div>
            </div>
 
@@ -126,56 +131,89 @@ export default function AdminDashboard() {
        </div>
 
        {/* Top Agents Table */}
-       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-           <div className="p-6 border-b border-gray-100">
-               <h3 className="text-lg font-bold text-slate-800 font-serif">Top Performing Agents</h3>
+       <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+           <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+               <div className="p-6 border-b border-gray-100">
+                   <h3 className="text-lg font-bold text-slate-800 font-serif">Top Performing Agents</h3>
+               </div>
+               <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-100">
+                    <thead className="bg-slate-50">
+                        <tr>
+                            <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Agent</th>
+                            <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Rev</th>
+                            <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Deals</th>
+                            <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Eff</th>
+                        </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-100">
+                        {data.topAgents.map((agent, i) => (
+                            <tr key={agent.id} className="hover:bg-slate-50">
+                                <td className="px-4 py-3 whitespace-nowrap">
+                                    <div className="flex items-center">
+                                        <div className="flex-shrink-0 h-8 w-8 rounded-full bg-slate-200 flex items-center justify-center font-bold text-slate-600 text-xs">
+                                                {agent.name.charAt(0)}
+                                        </div>
+                                        <div className="ml-3">
+                                            <div className="text-sm font-medium text-slate-900">{agent.name}</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td className="px-4 py-3 whitespace-nowrap">
+                                    <div className="text-sm font-bold text-emerald-600">${(agent.stats?.totalRevenue / 1000).toFixed(0)}k</div>
+                                </td>
+                                <td className="px-4 py-3 whitespace-nowrap">
+                                    <div className="text-sm text-slate-900">{agent.stats?.closedDeals || 0}</div>
+                                </td>
+                                <td className="px-4 py-3 whitespace-nowrap">
+                                    <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-emerald-100 text-emerald-800">
+                                        {(agent.stats?.rating || 4.5).toFixed(1)}
+                                    </span>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+               </div>
            </div>
-           <table className="min-w-full divide-y divide-gray-100">
-               <thead className="bg-slate-50">
-                   <tr>
-                       <th className="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Agent</th>
-                       <th className="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Revenue</th>
-                       <th className="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Deals</th>
-                       <th className="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Rating</th>
-                       <th className="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Efficiency</th>
-                   </tr>
-               </thead>
-               <tbody className="bg-white divide-y divide-gray-100">
-                   {data.topAgents.map((agent, i) => (
-                       <tr key={agent.id} className="hover:bg-slate-50">
-                           <td className="px-6 py-4 whitespace-nowrap">
-                               <div className="flex items-center">
-                                   <div className="flex-shrink-0 h-10 w-10">
-                                       <div className="h-10 w-10 rounded-full bg-slate-200 flex items-center justify-center font-bold text-slate-600">
-                                           {agent.name.charAt(0)}
-                                       </div>
-                                   </div>
-                                   <div className="ml-4">
-                                       <div className="text-sm font-medium text-slate-900">{agent.name}</div>
-                                       <div className="text-xs text-slate-500">{agent.email}</div>
-                                   </div>
-                               </div>
-                           </td>
-                           <td className="px-6 py-4 whitespace-nowrap">
-                               <div className="text-sm font-bold text-emerald-600">${(agent.stats?.totalRevenue || 0).toLocaleString()}</div>
-                           </td>
-                           <td className="px-6 py-4 whitespace-nowrap">
-                               <div className="text-sm text-slate-900">{agent.stats?.closedDeals || 0}</div>
-                           </td>
-                           <td className="px-6 py-4 whitespace-nowrap">
-                               <div className="flex items-center text-sm text-amber-500 font-bold">
-                                   ★ {agent.stats?.rating || 0}
-                               </div>
-                           </td>
-                           <td className="px-6 py-4 whitespace-nowrap">
-                               <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-emerald-100 text-emerald-800">
-                                   High
-                               </span>
-                           </td>
-                       </tr>
-                   ))}
-               </tbody>
-           </table>
+
+           {/* Property Performance Table */}
+           <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+               <div className="p-6 border-b border-gray-100">
+                   <h3 className="text-lg font-bold text-slate-800 font-serif">Property Engagement</h3>
+               </div>
+               <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-100">
+                    <thead className="bg-slate-50">
+                        <tr>
+                            <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Property</th>
+                            <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Views</th>
+                            <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Leads</th>
+                            <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Time</th>
+                        </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-100">
+                        {data.propertyStats && data.propertyStats.map((prop, i) => (
+                            <tr key={prop.id} className="hover:bg-slate-50">
+                                <td className="px-4 py-3 whitespace-nowrap">
+                                    <div className="text-sm font-medium text-slate-900 truncate max-w-[150px]">{prop.title}</div>
+                                    <div className="text-xs text-slate-500">${(prop.price / 1000).toFixed(0)}k</div>
+                                </td>
+                                <td className="px-4 py-3 whitespace-nowrap">
+                                    <div className="text-sm text-slate-900">{prop.views}</div>
+                                </td>
+                                <td className="px-4 py-3 whitespace-nowrap">
+                                    <div className="text-sm font-bold text-blue-600">{prop.enquiries}</div>
+                                </td>
+                                <td className="px-4 py-3 whitespace-nowrap">
+                                    <div className="text-xs text-slate-500">{prop.daysOnMarket}d</div>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+               </div>
+           </div>
        </div>
     </AdminLayout>
   );

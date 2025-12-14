@@ -15,7 +15,30 @@ async function main() {
     await prisma.property.deleteMany();
     await prisma.agentStat.deleteMany();
     await prisma.user.deleteMany();
+    await prisma.automationRule.deleteMany();
+    await prisma.organization.deleteMany();
   } catch(e) { console.log('Cleanup skipped or partial'); }
+
+  // 1.1 Organization (SaaS)
+  await prisma.organization.create({
+    data: {
+        name: 'DeveloperBee HQ',
+        brandColor: '#059669', // Emerald
+        plan: 'ENTERPRISE',
+        leadsLimit: 5000
+    }
+  });
+
+  // 1.2 Automations (Phase 2)
+  const rules = [
+      { name: 'New Lead Auto-Reply', trigger: 'LEAD_CREATED', actionType: 'SEND_WHATSAPP', template: 'welcome_msg', isActive: true },
+      { name: 'Follow-up Reminder (24h)', trigger: 'NO_RESPONSE_24H', actionType: 'CREATE_TASK', template: 'call_reminder', isActive: true },
+      { name: 'Hot Lead Alert', trigger: 'SCORE_ABOVE_80', actionType: 'NOTIFY_ADMIN', template: 'hot_lead_alert', isActive: true },
+  ];
+
+  for (const rule of rules) {
+      await prisma.automationRule.create({ data: rule });
+  }
 
   // 2. Users
   const admin = await prisma.user.create({
